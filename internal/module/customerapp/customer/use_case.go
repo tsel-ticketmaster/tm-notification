@@ -2,7 +2,6 @@ package customer
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/sirupsen/logrus"
@@ -71,11 +70,9 @@ func (u *customerUseCase) OnSignUp(ctx context.Context, event SignUpEvent) error
 			Body:        mtBuff.Bytes(),
 		},
 	}); err != nil {
-		u.logger.WithContext(ctx).WithError(err).Error()
+		u.logger.WithContext(ctx).WithError(err).WithField("event", event).Error()
 		return errors.New(http.StatusInternalServerError, status.INTERNAL_SERVER_ERROR, err.Error())
 	}
-
-	fmt.Println("masok")
 
 	return nil
 }
