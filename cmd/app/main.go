@@ -18,7 +18,9 @@ import (
 	"github.com/tsel-ticketmaster/tm-notification/pkg/middleware"
 	"github.com/tsel-ticketmaster/tm-notification/pkg/monitoring"
 	"github.com/tsel-ticketmaster/tm-notification/pkg/pubsub"
+	"github.com/tsel-ticketmaster/tm-notification/pkg/response"
 	"github.com/tsel-ticketmaster/tm-notification/pkg/server"
+	"github.com/tsel-ticketmaster/tm-notification/pkg/status"
 	"github.com/tsel-ticketmaster/tm-notification/pkg/validator"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"gopkg.in/gomail.v2"
@@ -64,6 +66,7 @@ func main() {
 		middleware.HTTPResponseTraceInjection,
 		middleware.NewHTTPRequestLogger(logger, c.Application.Debug).Middleware,
 	)
+	router.HandleFunc("/tm-notification", healthCheck).Methods(http.MethodGet)
 
 	// admin's app
 
@@ -115,4 +118,13 @@ func main() {
 	srv.Shutdown(ctx)
 	customerSignUpSubscriber.Close()
 	mon.Stop(ctx)
+}
+
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	response.JSON(w, http.StatusOK, response.RESTEnvelope{
+		Status:  status.OK,
+		Message: fmt.Sprintf("%s is running properly", os.Getenv("APP_NAME")),
+		Data:    nil,
+		Meta:    nil,
+	})
 }
