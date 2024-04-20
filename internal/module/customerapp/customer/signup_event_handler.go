@@ -13,7 +13,6 @@ type SignUpEventHandler struct {
 }
 
 func (handler SignUpEventHandler) Handle(ctx context.Context, msg interface{}) error {
-	fmt.Println("masuk ee")
 	kafkaMessage, ok := msg.(*ck.Message)
 	if !ok {
 		return fmt.Errorf("invalid message provider")
