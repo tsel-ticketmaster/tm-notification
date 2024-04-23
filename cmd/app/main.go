@@ -8,10 +8,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"cloud.google.com/go/storage"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"github.com/tsel-ticketmaster/tm-notification/config"
 	customerapp_customer "github.com/tsel-ticketmaster/tm-notification/internal/module/customerapp/customer"
+	customerapp_ticket "github.com/tsel-ticketmaster/tm-notification/internal/module/customerapp/ticket"
 	"github.com/tsel-ticketmaster/tm-notification/pkg/applogger"
 	"github.com/tsel-ticketmaster/tm-notification/pkg/kafka"
 	"github.com/tsel-ticketmaster/tm-notification/pkg/mailer"
@@ -23,6 +25,7 @@ import (
 	"github.com/tsel-ticketmaster/tm-notification/pkg/status"
 	"github.com/tsel-ticketmaster/tm-notification/pkg/validator"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
+	"google.golang.org/api/option"
 	"gopkg.in/gomail.v2"
 )
 
@@ -51,6 +54,11 @@ func main() {
 	)
 
 	mon.Start(ctx)
+
+	cloudstorage, err := storage.NewClient(context.Background(), option.WithCredentialsJSON(c.GCP.ServiceAccount))
+	if err != nil {
+		logger.WithError(err).Error()
+	}
 
 	_ = validator.Get()
 
@@ -87,6 +95,23 @@ func main() {
 	})
 	customerSignUpSubscriber.Subscribe()
 
+	customerappTicketUseCase := customerapp_ticket.NewTicketUseCase(customerapp_ticket.TicketUseCaseProperty{
+		AppName:      CustomerApp,
+		Logger:       logger,
+		EmailSender:  c.Mailer.Sender,
+		Mailer:       gomailAdapter,
+		CloudStorage: cloudstorage,
+	})
+	customerappAqcuireTicketSubscriber := pubsub.SubscriberFromConfluentKafkaConsumer(pubsub.ConfluentKafkaConsumerProperty{
+		Logger: logger,
+		Topic:  "acquire-ticket",
+		EventHandler: customerapp_ticket.AcquireTicketEventHandler{
+			TicketUseCase: customerappTicketUseCase,
+		},
+		Consumer: kafka.NewConsumer(CustomerApp, false),
+	})
+	customerappAqcuireTicketSubscriber.Subscribe()
+
 	handler := middleware.SetChain(
 		router,
 		cors.New(cors.Options{
@@ -116,6 +141,7 @@ func main() {
 	<-sigterm
 
 	srv.Shutdown(ctx)
+	customerappAqcuireTicketSubscriber.Close()
 	customerSignUpSubscriber.Close()
 	mon.Stop(ctx)
 }
