@@ -17,12 +17,17 @@ RUN CGO_ENABLED=1 GOOS=linux go build -a -o bin/app cmd/app/main.go
 RUN cp bin/app /tmp/app
 
 # Run stage
-FROM --platform=linux/amd64 chromedp/headless-shell:123.0.6312.86
+FROM --platform=linux/amd64 debian:bullseye-slim
 # Install Google Chrome
+RUN apt-get update && apt-get install -y wget gnupg ca-certificates \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable
 
 WORKDIR /usr/src/app
 COPY --from=builder /tmp/app .
 
-RUN DEBIAN_FRONTEND=noninteractive TZ=Asia/Jakarta apt-get -y install tzdata
+RUN apt-get install -y tzdata
 
 CMD ["./app"]
