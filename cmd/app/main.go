@@ -91,7 +91,7 @@ func main() {
 		EventHandler: customerapp_customer.SignUpEventHandler{
 			CustomerUseCase: customerappCustomerUseCase,
 		},
-		Consumer: kafka.NewConsumer(CustomerApp, false),
+		Consumer: kafka.NewConsumer(fmt.Sprintf("%s/%s", CustomerApp, "customer-sign-in"), false),
 	})
 	customerSignUpSubscriber.Subscribe()
 
@@ -108,7 +108,7 @@ func main() {
 		EventHandler: customerapp_ticket.AcquireTicketEventHandler{
 			TicketUseCase: customerappTicketUseCase,
 		},
-		Consumer: kafka.NewConsumer(CustomerApp, false),
+		Consumer: kafka.NewConsumer(fmt.Sprintf("%s/%s", CustomerApp, "acquire-ticket"), false),
 	})
 	customerappAqcuireTicketSubscriber.Subscribe()
 
